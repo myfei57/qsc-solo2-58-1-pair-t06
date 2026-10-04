@@ -78,6 +78,11 @@ def build_router(runtime) -> Router:
     router.get("/cables", bind(cable.cables, runtime))
     router.get("/cable/monitor", bind(cable.cable_monitor, runtime))
     router.post("/cable/sample", bind(cable.cable_sample, runtime))
+    router.post("/cable/replace", bind(cable.cable_replace, runtime))
+    router.get("/cable/current", bind(cable.cable_current, runtime))
+    router.get("/cable/history", bind(cable.cable_history, runtime))
+    router.get("/cable/attribution", bind(cable.cable_attribution, runtime))
+    router.get("/cable/exceedances", bind(cable.cable_exceedances, runtime))
 
     def route_table(request: Request) -> Response:
         return Response.json(200, {"count": len(router), "routes": router.describe()})

@@ -59,6 +59,15 @@ def optional_number(payload: dict[str, object], key: str, default: float) -> flo
     return require_number(payload, key)
 
 
+def optional_bool(payload: dict[str, object], key: str, default: bool = False) -> bool:
+    value = payload.get(key)
+    if value is None:
+        return default
+    if not isinstance(value, bool):
+        raise BadRequest(f"{key} must be a boolean")
+    return value
+
+
 def optional_text(payload: dict[str, object], key: str, default: str = "") -> str:
     value = payload.get(key)
     if value is None:

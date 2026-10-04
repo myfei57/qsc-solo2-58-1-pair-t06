@@ -5,6 +5,7 @@ from __future__ import annotations
 from portpower.berth.berth import BerthOccupied, BerthVacant
 from portpower.berth.registry import NoBerthAvailable
 from portpower.berth.schedule import ReservationConflict
+from portpower.cable.lifecycle import DuplicateReplacement
 from portpower.console.http import BadRequest, Response
 from portpower.disconn.breaker import BreakerNotClosed
 from portpower.disconn.close import ArmMissing
@@ -33,6 +34,7 @@ CONFLICT_ERRORS: tuple[type[Exception], ...] = (
     PhaseReversed,
     NoMeterBinding,
     PlugNotEngaged,
+    DuplicateReplacement,
     StoreKeyError,
 )
 

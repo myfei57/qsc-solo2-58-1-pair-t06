@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from portpower.cable.lifecycle import derate_warning
 from portpower.cable.rating import classify
 from portpower.console.http import Request, Response
 from portpower.store.query import count_with_prefix
@@ -21,7 +22,8 @@ def health(runtime, request: Request) -> Response:
 
 def status(runtime, request: Request) -> Response:
     temperature = runtime.sensor.read()
-    rating = classify(temperature, runtime.cable.rated_temperature)
+    span = runtime.lifecycle.require_current()
+    rating = classify(temperature, span.rated_temperature)
     return Response.json(
         200,
         {
@@ -33,15 +35,17 @@ def status(runtime, request: Request) -> Response:
             "frequency_stable": runtime.syncer.stable(),
             "temperature": temperature,
             "filter_average": runtime.filter.average,
-            "cable": runtime.cable.describe(),
+            "cable": span.as_dict(),
             "cable_rating": rating.value,
             "cable_alarm": rating.is_alarm,
+            "cable_derated": span.derated,
+            "cable_warning": derate_warning(span),
             "protection": {
                 "threshold": runtime.protector.threshold,
                 "tripped": runtime.protector.tripped,
                 "breaches": runtime.protector.breaches,
             },
-            "monitor": runtime.monitor.summary(),
+            "monitor": runtime.tracker.summary_for(span.cable_id),
             "audit_count": runtime.ledger.count(),
             "berths_occupied": runtime.berths.occupied_count(),
             "fleet_count": runtime.fleet.count(),

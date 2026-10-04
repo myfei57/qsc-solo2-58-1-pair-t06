@@ -8,11 +8,11 @@ from portpower.audit.ledger import Ledger
 from portpower.berth.mapping import BerthMapping
 from portpower.berth.registry import BerthRegistry
 from portpower.berth.schedule import Scheduler
-from portpower.cable.cable import Cable
 from portpower.cable.filter import MovingAverageFilter
 from portpower.cable.inventory import CableInventory
-from portpower.cable.monitor import TemperatureMonitor
+from portpower.cable.lifecycle import CableLifecycle
 from portpower.cable.sensor import TemperatureSensor
+from portpower.cable.tracker import CableTracker
 from portpower.disconn.breaker import Breaker
 from portpower.disconn.limit import LimitEnforcer
 from portpower.disconn.protect import Protector
@@ -54,10 +54,10 @@ class Runtime:
     syncer: Syncer
     sensor: TemperatureSensor
     filter: MovingAverageFilter
-    cable: Cable
     cables: CableInventory
+    lifecycle: CableLifecycle
+    tracker: CableTracker
     tariff: Tariff
-    monitor: TemperatureMonitor
     scheduler: Scheduler
     history: ProfileHistory
     phase: PhaseState
@@ -77,6 +77,13 @@ def build_runtime(harbor: Harbor, store: RecordStore) -> Runtime:
     cable_id, cable_rating = SHORE_CABLE
     cables.add(cable_id, cable_rating)
 
+    lifecycle = CableLifecycle(store)
+    if lifecycle.current() is None:
+        lifecycle.replace(cable_id, cable_rating)
+    for span in lifecycle.spans():
+        cables.add(span.cable_id, span.rated_temperature)
+    tracker = CableTracker(lifecycle, MONITOR_WINDOW, store)
+
     return Runtime(
         harbor=harbor,
         catalog=catalog,
@@ -91,10 +98,10 @@ def build_runtime(harbor: Harbor, store: RecordStore) -> Runtime:
         syncer=Syncer(store),
         sensor=TemperatureSensor(),
         filter=filter_window,
-        cable=cables.get(cable_id),
         cables=cables,
+        lifecycle=lifecycle,
+        tracker=tracker,
         tariff=Tariff(TARIFF_RATE),
-        monitor=TemperatureMonitor(MONITOR_WINDOW),
         scheduler=Scheduler(store),
         history=ProfileHistory(store),
         phase=PhaseState(),

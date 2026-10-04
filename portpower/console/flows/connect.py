@@ -118,7 +118,7 @@ def run_connect(runtime, request: ConnectRequest) -> ConnectResult:
             tolerance=SYNC_TOLERANCE,
         )
         runtime.sensor.set(request.temperature)
-        runtime.monitor.observe(request.temperature)
+        runtime.tracker.observe(request.temperature)
         runtime.protector.verdict(runtime.sensor.read())
         runtime.quotas.set(Quota(ship=request.ship, limit=request.load))
         runtime.ledger.append(
@@ -139,7 +139,8 @@ def run_connect(runtime, request: ConnectRequest) -> ConnectResult:
         breaker_state=runtime.shore.state.value,
         phase=runtime.phase.current.value,
         cable_rating=classify(
-            runtime.sensor.read(), runtime.cable.rated_temperature
+            runtime.sensor.read(),
+            runtime.lifecycle.require_current().rated_temperature,
         ).value,
         temperature=runtime.sensor.read(),
     )
