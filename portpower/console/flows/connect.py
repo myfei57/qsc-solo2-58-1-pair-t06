@@ -6,7 +6,6 @@ from dataclasses import asdict, dataclass
 from typing import Any
 from uuid import uuid4
 
-from portpower.cable.rating import classify
 from portpower.console.http import BadRequest
 from portpower.console.validation import (
     optional_number,
@@ -67,6 +66,9 @@ class ConnectResult:
     breaker_state: str
     phase: str
     cable_rating: str
+    cable_id: str
+    cable_degraded: bool
+    cable_warning: str | None
     temperature: float
 
     def as_dict(self) -> dict[str, object]:
@@ -118,8 +120,8 @@ def run_connect(runtime, request: ConnectRequest) -> ConnectResult:
             tolerance=SYNC_TOLERANCE,
         )
         runtime.sensor.set(request.temperature)
-        runtime.monitor.observe(request.temperature)
-        runtime.protector.verdict(runtime.sensor.read())
+        observation = runtime.cable_lifecycle.observe(request.temperature)
+        runtime.protector.assess(observation.filtered)
         runtime.quotas.set(Quota(ship=request.ship, limit=request.load))
         runtime.ledger.append(
             "connect",
@@ -138,9 +140,10 @@ def run_connect(runtime, request: ConnectRequest) -> ConnectResult:
         headroom=runtime.profiles.headroom(request.ship),
         breaker_state=runtime.shore.state.value,
         phase=runtime.phase.current.value,
-        cable_rating=classify(
-            runtime.sensor.read(), runtime.cable.rated_temperature
-        ).value,
+        cable_rating=observation.rating.value,
+        cable_id=observation.cable.identifier,
+        cable_degraded=observation.degraded,
+        cable_warning=observation.warning,
         temperature=runtime.sensor.read(),
     )
 

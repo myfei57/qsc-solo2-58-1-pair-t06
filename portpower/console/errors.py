@@ -5,6 +5,10 @@ from __future__ import annotations
 from portpower.berth.berth import BerthOccupied, BerthVacant
 from portpower.berth.registry import NoBerthAvailable
 from portpower.berth.schedule import ReservationConflict
+from portpower.cable.lifecycle import (
+    CableReplacementFailed,
+    DuplicateCableRegistration,
+)
 from portpower.console.http import BadRequest, Response
 from portpower.disconn.breaker import BreakerNotClosed
 from portpower.disconn.close import ArmMissing
@@ -19,6 +23,8 @@ from portpower.plug.release import PlugNotEngaged
 from portpower.store.kvstore import StoreKeyError
 
 CONFLICT_ERRORS: tuple[type[Exception], ...] = (
+    CableReplacementFailed,
+    DuplicateCableRegistration,
     BerthOccupied,
     BerthVacant,
     ReservationConflict,

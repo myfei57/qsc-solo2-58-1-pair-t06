@@ -8,10 +8,11 @@ from portpower.audit.ledger import Ledger
 from portpower.berth.mapping import BerthMapping
 from portpower.berth.registry import BerthRegistry
 from portpower.berth.schedule import Scheduler
-from portpower.cable.cable import Cable
-from portpower.cable.filter import MovingAverageFilter
+from portpower.cable.cable import ActiveCable, Cable
+from portpower.cable.filter import ActiveAverageFilter, MovingAverageFilter
 from portpower.cable.inventory import CableInventory
-from portpower.cable.monitor import TemperatureMonitor
+from portpower.cable.lifecycle import CableLifecycle
+from portpower.cable.monitor import ActiveTemperatureMonitor, TemperatureMonitor
 from portpower.cable.sensor import TemperatureSensor
 from portpower.disconn.breaker import Breaker
 from portpower.disconn.limit import LimitEnforcer
@@ -53,11 +54,12 @@ class Runtime:
     binder: Binder
     syncer: Syncer
     sensor: TemperatureSensor
-    filter: MovingAverageFilter
+    filter: MovingAverageFilter | ActiveAverageFilter
     cable: Cable
     cables: CableInventory
+    cable_lifecycle: CableLifecycle
     tariff: Tariff
-    monitor: TemperatureMonitor
+    monitor: TemperatureMonitor | ActiveTemperatureMonitor
     scheduler: Scheduler
     history: ProfileHistory
     phase: PhaseState
@@ -72,10 +74,20 @@ def build_runtime(harbor: Harbor, store: RecordStore) -> Runtime:
     for code in catalog.codes():
         berths.add(code)
 
-    filter_window = MovingAverageFilter(FILTER_WINDOW)
     cables = CableInventory()
     cable_id, cable_rating = SHORE_CABLE
-    cables.add(cable_id, cable_rating)
+    cable_lifecycle = CableLifecycle(
+        cables,
+        cable_id,
+        cable_rating,
+        store=store,
+        window=FILTER_WINDOW,
+    )
+    active_cable = ActiveCable(lambda: cable_lifecycle.current)
+    active_filter = ActiveAverageFilter(lambda: cable_lifecycle.active_filter)
+    active_monitor = ActiveTemperatureMonitor(
+        lambda: cable_lifecycle.current_monitor
+    )
 
     return Runtime(
         harbor=harbor,
@@ -90,15 +102,16 @@ def build_runtime(harbor: Harbor, store: RecordStore) -> Runtime:
         binder=Binder(store),
         syncer=Syncer(store),
         sensor=TemperatureSensor(),
-        filter=filter_window,
-        cable=cables.get(cable_id),
+        filter=active_filter,
+        cable=active_cable,
         cables=cables,
+        cable_lifecycle=cable_lifecycle,
         tariff=Tariff(TARIFF_RATE),
-        monitor=TemperatureMonitor(MONITOR_WINDOW),
+        monitor=active_monitor,
         scheduler=Scheduler(store),
         history=ProfileHistory(store),
         phase=PhaseState(),
         shore=Breaker(SHORE_BREAKER_ID),
-        protector=Protector(PROTECTION_THRESHOLD, filter_window),
+        protector=Protector(lambda: cable_lifecycle.rated_temperature, active_filter),
         limiter=LimitEnforcer(ProfileRegistry(store)),
     )

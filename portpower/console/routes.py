@@ -76,6 +76,11 @@ def build_router(runtime) -> Router:
     router.delete("/reservation", bind(schedule.reservation_cancel, runtime))
 
     router.get("/cables", bind(cable.cables, runtime))
+    router.post("/cable/replace", bind(cable.cable_replace, runtime))
+    router.post("/cable/install", bind(cable.cable_replace, runtime))
+    router.get("/cable/history", bind(cable.cable_history, runtime))
+    router.get("/cable/assets", bind(cable.cables, runtime))
+    router.get("/cable/asset", bind(cable.cable_asset, runtime))
     router.get("/cable/monitor", bind(cable.cable_monitor, runtime))
     router.post("/cable/sample", bind(cable.cable_sample, runtime))
 

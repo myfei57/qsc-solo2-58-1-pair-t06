@@ -21,7 +21,9 @@ def health(runtime, request: Request) -> Response:
 
 def status(runtime, request: Request) -> Response:
     temperature = runtime.sensor.read()
-    rating = classify(temperature, runtime.cable.rated_temperature)
+    lifecycle = runtime.cable_lifecycle
+    cable = lifecycle.current
+    rating = classify(temperature, cable.rated_temperature)
     return Response.json(
         200,
         {
@@ -33,7 +35,10 @@ def status(runtime, request: Request) -> Response:
             "frequency_stable": runtime.syncer.stable(),
             "temperature": temperature,
             "filter_average": runtime.filter.average,
-            "cable": runtime.cable.describe(),
+            "cable": cable.describe(),
+            "cable_installation": lifecycle.current_installation.as_dict(),
+            "cable_degraded": lifecycle.is_degraded(cable),
+            "cable_warning": lifecycle.warning_for(cable),
             "cable_rating": rating.value,
             "cable_alarm": rating.is_alarm,
             "protection": {
